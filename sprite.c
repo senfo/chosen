@@ -25,8 +25,8 @@ const float JUMP_FORCE = 500.0f;
 const float GROUND_Y = 350.0f;
 const float SIZE = 32.0f;
 const float FRAME_DURATION = 0.1f;
-const int IDLE_FRAME = 0;  // clean standing pose
-const int JUMP_FRAME = 2;  // adjust after a look — pick whichever column reads best as airborne
+const int IDLE_FRAME = 0;
+const int JUMP_FRAME = 2;
 
 int main(void) {
     float playerX = 100;
