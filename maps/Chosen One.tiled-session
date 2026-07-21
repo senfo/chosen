@@ -22,7 +22,7 @@
     },
     "last.imagePath": "/Users/sfao/Downloads/Pack",
     "map.height": 18,
-    "map.lastUsedFormat": "tmx",
+    "map.lastUsedFormat": "json",
     "map.tileHeight": 16,
     "map.tileWidth": 16,
     "map.width": 32,
