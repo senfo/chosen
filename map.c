@@ -2,7 +2,7 @@
 #include "raylib.h"
 
 #define CUTE_TILED_IMPLEMENTATION
-#define CUTE_TILED_NO_EXTERNAL_TILESET_WARNING // we load the external tileset ourselves, on purpose
+#define CUTE_TILED_NO_EXTERNAL_TILESET_WARNING // Loading the external tileset, on purpose
 #include "lib/cute_tiled.h"
 
 #define TILE_SIZE 16
@@ -28,7 +28,7 @@ int main(void) {
         return 1;
     }
 
-    int tilesheetCols = tileset->columns; // 13, from Tilesheet.tsj
+    int tilesheetCols = tileset->columns;
     Texture2D tilesheet = LoadTexture(TILESHEET_IMAGE);
 
     while (!WindowShouldClose()) {
@@ -44,19 +44,23 @@ int main(void) {
 
                 for (int row = 0; row < height; row++) {
                     for (int col = 0; col < width; col++) {
-                        int gid = data[row * width + col];
-                        if (gid == 0) continue; // 0 = empty cell, skip
+                        int gid = data[row * width + col]; // These are the values in the CSV.
 
-                        // cute_tiled has helper functions for flip flags —
-                        // strip them off before treating this as a plain index
+                        // 0 == empty cell, skip
+                        if (gid == 0) {
+                            continue;
+                        }
+
+                        // cute_tiled has helper functions for flip flags.
+                        // Strip them off before treating this as a plain index.
                         gid = cute_tiled_unset_flags(gid);
 
-                        int tileIndex = gid - 1; // firstgid=1, single tileset
-                        int srcCol = tileIndex % tilesheetCols;
-                        int srcRow = tileIndex / tilesheetCols;
+                        int tileIndex = gid - 1; // Tiled tiles start at index 1
+                        int srcCol = tileIndex % tilesheetCols; // Tiles are sequential. Do away with the row.
+                        int srcRow = tileIndex / tilesheetCols; // Same thing, but for rows.
 
                         Rectangle source = {
-                            (float)(srcCol * TILE_SIZE),
+                            (float)(srcCol * TILE_SIZE), // This is gonna suck if we don't stick to 16x16
                             (float)(srcRow * TILE_SIZE),
                             (float)TILE_SIZE,
                             (float)TILE_SIZE
