@@ -1,0 +1,14 @@
+{ "columns":13,
+ "image":"..\/sprites\/Tilesheet.png",
+ "imageheight":320,
+ "imagewidth":208,
+ "margin":0,
+ "name":"Tilesheet",
+ "spacing":0,
+ "tilecount":260,
+ "tiledversion":"1.12.2",
+ "tileheight":16,
+ "tilewidth":16,
+ "type":"tileset",
+ "version":"1.10"
+}
