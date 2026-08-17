@@ -5,10 +5,13 @@ LDFLAGS = $(shell pkg-config --libs raylib)
 
 .PHONY: all clean sprite scroll
 
-all: sprite
+all: map
 
 game: main.c
 	$(CC) main.c -o game $(CFLAGS) $(LDFLAGS)
+
+map: map.c
+	$(CC) map.c -o map $(CFLAGS) $(LDFLAGS)
 
 sprite: sprite.c
 	$(CC) sprite.c -o sprite $(CFLAGS) $(LDFLAGS)
