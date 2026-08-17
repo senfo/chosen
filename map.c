@@ -1,3 +1,4 @@
+#include <math.h>
 #include <string.h>
 #include "raylib.h"
 
@@ -11,7 +12,8 @@
 #define TILESHEET_IMAGE "sprites/Tilesheet.png"
 
 int main(void) {
-    InitWindow(800, 450, "Map test");
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+    InitWindow(1024, 576, "Map test");
     SetTargetFPS(60);
 
     cute_tiled_map_t *map = cute_tiled_load_map_from_file(MAP_FILE, NULL);
@@ -31,8 +33,19 @@ int main(void) {
     int tilesheetCols = tileset->columns;
     Texture2D tilesheet = LoadTexture(TILESHEET_IMAGE);
 
+    // Map is drawn at native tile resolution into this texture, then
+    // scaled up as a whole to fill the window.
+    int gameWidth = map->width * TILE_SIZE;
+    int gameHeight = map->height * TILE_SIZE;
+    RenderTexture2D target = LoadRenderTexture(gameWidth, gameHeight);
+    SetTextureFilter(target.texture, TEXTURE_FILTER_POINT);
+
     while (!WindowShouldClose()) {
-        BeginDrawing();
+        if ((IsKeyDown(KEY_LEFT_SUPER) || IsKeyDown(KEY_RIGHT_SUPER)) && IsKeyPressed(KEY_F)) {
+            ToggleFullscreen();
+        }
+
+        BeginTextureMode(target);
         ClearBackground(RAYWHITE);
 
         cute_tiled_layer_t *layer = map->layers;
@@ -77,12 +90,35 @@ int main(void) {
                     }
                 }
             }
+
             layer = layer->next;
         }
 
+        EndTextureMode();
+
+        int screenWidth = GetScreenWidth();
+        int screenHeight = GetScreenHeight();
+        float scale = fminf((float)screenWidth / gameWidth, (float)screenHeight / gameHeight);
+
+        Rectangle source = {
+            0, 0,
+            (float)target.texture.width, -(float)target.texture.height // Flip vertically; render textures are y-flipped.
+        };
+        Rectangle dest = {
+            (screenWidth - gameWidth * scale) * 0.5f,
+            (screenHeight - gameHeight * scale) * 0.5f,
+            gameWidth * scale,
+            gameHeight * scale
+        };
+        Vector2 origin = { 0, 0 };
+
+        BeginDrawing();
+        ClearBackground(BLACK);
+        DrawTexturePro(target.texture, source, dest, origin, 0.0f, WHITE);
         EndDrawing();
     }
 
+    UnloadRenderTexture(target);
     UnloadTexture(tilesheet);
     cute_tiled_free_external_tileset(tileset);
     cute_tiled_free_map(map);

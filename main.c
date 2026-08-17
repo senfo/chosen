@@ -77,6 +77,7 @@ int main(void) {
     UnloadSound(jump);
     CloseAudioDevice();
     CloseWindow();
+
     return 0;
 }
 
