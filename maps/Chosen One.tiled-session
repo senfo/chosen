@@ -8,8 +8,8 @@
             "scale": 1.5363281249999998,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 244.73938469361815,
-                "y": 133.10958555809816
+                "x": 251.24841088227814,
+                "y": 14.970760233918128
             }
         },
         "HouseUpdate.tsj": {
@@ -44,17 +44,15 @@
     "map.tileWidth": 16,
     "map.width": 32,
     "openFiles": [
-        "1.tmj",
-        "Tilesheet.tsx",
-        "HouseUpdate.tsx"
+        "1.tmj"
     ],
     "project": "Chosen One.tiled-project",
     "recentFiles": [
+        "1.tmj",
         "HouseUpdate.tsj",
         "Tilesheet.tsj",
         "Tilesheet.tsx",
         "HouseUpdate.tsx",
-        "1.tmj",
         "TX Tileable - Dungeon Wall.tsx",
         "TX Dungeon Props.tsx"
     ],

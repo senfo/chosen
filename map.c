@@ -11,6 +11,48 @@
 #define TILESET_FILE "maps/Tilesheet.tsj"
 #define TILESHEET_IMAGE "sprites/Tilesheet.png"
 
+#define JUMP_SOUND "audio/jump.wav"
+#define PLAYER_SHEET "sprites/BaseCharacter1.png"
+#define FRAME_SIZE 16
+#define FRAMES_PER_ROW 6
+
+typedef enum {
+    ANIM_WALK_DOWN = 0,
+    ANIM_RUN_LEFT  = 1,
+    ANIM_RUN_RIGHT = 2,
+    ANIM_WALK_UP   = 3
+} AnimRow;
+
+typedef enum {
+    FACING_LEFT,
+    FACING_RIGHT
+} Facing;
+
+const float PLAYER_SPEED = 120.0f;
+const float GRAVITY = 600.0f;
+const float JUMP_FORCE = 260.0f;
+const float FRAME_DURATION = 0.1f;
+const int IDLE_FRAME = 0;
+const int JUMP_FRAME = 2;
+
+int FindGroundRow(cute_tiled_layer_t *groundLayer, int col, int fromRow) {
+    if (!groundLayer || col < 0 || col >= groundLayer->width) {
+        return -1;
+    }
+
+    if (fromRow < 0) {
+        fromRow = 0;
+    }
+
+    for (int row = fromRow; row < groundLayer->height; row++) {
+        if (groundLayer->data[row * groundLayer->width + col] != 0) {
+            return row;
+        }
+    }
+
+    return -1;
+}
+
 int main(void) {
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     InitWindow(1024, 576, "Map test");
@@ -19,6 +61,7 @@ int main(void) {
     cute_tiled_map_t *map = cute_tiled_load_map_from_file(MAP_FILE, NULL);
     if (!map) {
         CloseWindow();
+
         return 1;
     }
 
@@ -33,6 +76,19 @@ int main(void) {
     int tilesheetCols = tileset->columns;
     Texture2D tilesheet = LoadTexture(TILESHEET_IMAGE);
 
+    // Ground is the only layer the player collides with for now.
+    cute_tiled_layer_t *groundLayer = NULL;
+    for (cute_tiled_layer_t *l = map->layers; l; l = l->next) {
+        if (l->name.ptr && strcmp(l->name.ptr, "Ground") == 0) {
+            groundLayer = l;
+            break;
+        }
+    }
+
+    InitAudioDevice();
+    Sound jumpSound = LoadSound(JUMP_SOUND);
+    Texture2D playerSheet = LoadTexture(PLAYER_SHEET);
+
     // Map is drawn at native tile resolution into this texture, then
     // scaled up as a whole to fill the window.
     int gameWidth = map->width * TILE_SIZE;
@@ -40,9 +96,106 @@ int main(void) {
     RenderTexture2D target = LoadRenderTexture(gameWidth, gameHeight);
     SetTextureFilter(target.texture, TEXTURE_FILTER_POINT);
 
+    float playerX = TILE_SIZE;
+    float playerY = 0;
+    float velocityY = 0;
+    bool onGround = false;
+    Facing facing = FACING_RIGHT;
+    int currentFrame = IDLE_FRAME;
+    float animTimer = 0;
+
     while (!WindowShouldClose()) {
         if ((IsKeyDown(KEY_LEFT_SUPER) || IsKeyDown(KEY_RIGHT_SUPER)) && IsKeyPressed(KEY_F)) {
             ToggleFullscreen();
+        }
+
+        float dt = GetFrameTime();
+        bool movingRight = IsKeyDown(KEY_RIGHT);
+        bool movingLeft = IsKeyDown(KEY_LEFT);
+        bool moving = (movingRight || movingLeft) && onGround;
+
+        if (movingRight) {
+            playerX += PLAYER_SPEED * dt;
+            facing = FACING_RIGHT;
+        }
+
+        if (movingLeft) {
+            playerX -= PLAYER_SPEED * dt;
+            facing = FACING_LEFT;
+        }
+
+        if (playerX < 0) {
+            playerX = 0;
+        }
+
+        if (playerX > gameWidth - FRAME_SIZE) {
+            playerX = gameWidth - FRAME_SIZE;
+        }
+
+        if (IsKeyPressed(KEY_SPACE) && onGround) {
+            velocityY = -JUMP_FORCE;
+            onGround = false;
+            PlaySound(jumpSound);
+        }
+
+        int footCol = (int)(playerX + FRAME_SIZE / 2.0f) / TILE_SIZE;
+        if (footCol < 0) {
+            footCol = 0;
+        }
+
+        if (footCol >= map->width) {
+            footCol = map->width - 1;
+        }
+
+        int currentFootRow = (int)((playerY + FRAME_SIZE) / TILE_SIZE);
+        int groundRow = FindGroundRow(groundLayer, footCol, currentFootRow - 1);
+        float groundSurfaceY = groundRow >= 0 ? (float)(groundRow * TILE_SIZE) : (float)gameHeight;
+
+        if (onGround) {
+            float step = groundSurfaceY - (playerY + FRAME_SIZE);
+
+            // Handle diagonal sections of land
+            if (fabsf(step) <= TILE_SIZE) {
+                playerY = groundSurfaceY - FRAME_SIZE;
+                velocityY = 0;
+            }
+            else {
+                onGround = false; // Ground dropped away - fall off the ledge.
+            }
+        }
+
+        if (!onGround) {
+            velocityY += GRAVITY * dt;
+            float newY = playerY + velocityY * dt;
+
+            if (velocityY >= 0 && newY + FRAME_SIZE >= groundSurfaceY) {
+                playerY = groundSurfaceY - FRAME_SIZE;
+                velocityY = 0;
+                onGround = true;
+            }
+            else {
+                playerY = newY;
+            }
+        }
+
+        AnimRow currentAnim;
+        if (!onGround) {
+            currentAnim = (facing == FACING_RIGHT) ? ANIM_RUN_RIGHT : ANIM_RUN_LEFT;
+            currentFrame = JUMP_FRAME;
+            animTimer = 0;
+        }
+        else if (moving) {
+            currentAnim = (facing == FACING_RIGHT) ? ANIM_RUN_RIGHT : ANIM_RUN_LEFT;
+            animTimer += dt;
+            if (animTimer >= FRAME_DURATION) {
+                animTimer = 0;
+                currentFrame = (currentFrame + 1) % FRAMES_PER_ROW;
+            }
+        }
+        else {
+            currentAnim = ANIM_WALK_DOWN;
+            currentFrame = IDLE_FRAME;
+            animTimer = 0;
         }
 
         BeginTextureMode(target);
@@ -94,6 +247,16 @@ int main(void) {
             layer = layer->next;
         }
 
+        Rectangle playerSource = {
+            (float)(currentFrame * FRAME_SIZE),
+            (float)(currentAnim * FRAME_SIZE),
+            (float)FRAME_SIZE,
+            (float)FRAME_SIZE
+        };
+        Rectangle playerDest = { playerX, playerY, FRAME_SIZE, FRAME_SIZE };
+        Vector2 playerOrigin = { 0, 0 };
+        DrawTexturePro(playerSheet, playerSource, playerDest, playerOrigin, 0.0f, WHITE);
+
         EndTextureMode();
 
         int screenWidth = GetScreenWidth();
@@ -119,6 +282,9 @@ int main(void) {
     }
 
     UnloadRenderTexture(target);
+    UnloadTexture(playerSheet);
+    UnloadSound(jumpSound);
+    CloseAudioDevice();
     UnloadTexture(tilesheet);
     cute_tiled_free_external_tileset(tileset);
     cute_tiled_free_map(map);
