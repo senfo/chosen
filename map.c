@@ -35,22 +35,13 @@ const float FRAME_DURATION = 0.1f;
 const int IDLE_FRAME = 0;
 const int JUMP_FRAME = 2;
 
-int FindGroundRow(cute_tiled_layer_t *groundLayer, int col, int fromRow) {
-    if (!groundLayer || col < 0 || col >= groundLayer->width) {
-        return -1;
+// Whether the Ground layer has a solid tile at (col, row).
+bool IsSolid(cute_tiled_layer_t *groundLayer, int col, int row) {
+    if (!groundLayer || col < 0 || col >= groundLayer->width || row < 0 || row >= groundLayer->height) {
+        return false;
     }
 
-    if (fromRow < 0) {
-        fromRow = 0;
-    }
-
-    for (int row = fromRow; row < groundLayer->height; row++) {
-        if (groundLayer->data[row * groundLayer->width + col] != 0) {
-            return row;
-        }
-    }
-
-    return -1;
+    return groundLayer->data[row * groundLayer->width + col] != 0;
 }
 
 int main(void) {
@@ -147,35 +138,36 @@ int main(void) {
             footCol = map->width - 1;
         }
 
-        int currentFootRow = (int)((playerY + FRAME_SIZE) / TILE_SIZE);
-        int groundRow = FindGroundRow(groundLayer, footCol, currentFootRow - 1);
-        float groundSurfaceY = groundRow >= 0 ? (float)(groundRow * TILE_SIZE) : (float)gameHeight;
+        int footRow = (int)((playerY + FRAME_SIZE) / TILE_SIZE);
 
-        if (onGround) {
-            float step = groundSurfaceY - (playerY + FRAME_SIZE);
-
-            // Handle diagonal sections of land
-            if (fabsf(step) <= TILE_SIZE) {
-                playerY = groundSurfaceY - FRAME_SIZE;
-                velocityY = 0;
-            }
-            else {
-                onGround = false; // Ground dropped away - fall off the ledge.
+        // Only look for ground to land on when not actively moving upward
+        // (jumping) - otherwise a jump would immediately re-snap to the
+        // tile it just launched from.
+        int groundRow = -1;
+        if (velocityY >= 0) {
+            for (int row = footRow - 1; row <= footRow + 1; row++) {
+                if (IsSolid(groundLayer, footCol, row)) {
+                    groundRow = row;
+                    break;
+                }
             }
         }
 
-        if (!onGround) {
+        if (groundRow >= 0) {
+            // Ground is within a tile of the feet - stand on it. Covers
+            // level ground and small (1-tile) steps up or down, like the
+            // pond's diagonal-looking edges.
+            playerY = (float)(groundRow * TILE_SIZE - FRAME_SIZE);
+            velocityY = 0;
+            onGround = true;
+        }
+        else {
+            // Nothing within reach - fall. The same check above runs again
+            // next frame, so this naturally catches landing once we're
+            // actually close to solid ground again.
             velocityY += GRAVITY * dt;
-            float newY = playerY + velocityY * dt;
-
-            if (velocityY >= 0 && newY + FRAME_SIZE >= groundSurfaceY) {
-                playerY = groundSurfaceY - FRAME_SIZE;
-                velocityY = 0;
-                onGround = true;
-            }
-            else {
-                playerY = newY;
-            }
+            playerY += velocityY * dt;
+            onGround = false;
         }
 
         AnimRow currentAnim;
