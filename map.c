@@ -141,11 +141,10 @@ int main(void) {
         int footRow = (int)((playerY + FRAME_SIZE) / TILE_SIZE);
 
         // Only look for ground to land on when not actively moving upward
-        // (jumping) - otherwise a jump would immediately re-snap to the
-        // tile it just launched from.
         int groundRow = -1;
         if (velocityY >= 0) {
-            for (int row = footRow - 1; row <= footRow + 1; row++) {
+            int startRow = onGround ? footRow - 1 : footRow;
+            for (int row = startRow; row <= footRow + 1; row++) {
                 if (IsSolid(groundLayer, footCol, row)) {
                     groundRow = row;
                     break;
@@ -154,17 +153,12 @@ int main(void) {
         }
 
         if (groundRow >= 0) {
-            // Ground is within a tile of the feet - stand on it. Covers
-            // level ground and small (1-tile) steps up or down, like the
-            // pond's diagonal-looking edges.
+            // Ground is within a tile of the feet - stand on it.
             playerY = (float)(groundRow * TILE_SIZE - FRAME_SIZE);
             velocityY = 0;
             onGround = true;
         }
         else {
-            // Nothing within reach - fall. The same check above runs again
-            // next frame, so this naturally catches landing once we're
-            // actually close to solid ground again.
             velocityY += GRAVITY * dt;
             playerY += velocityY * dt;
             onGround = false;
